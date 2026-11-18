@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ôn Tập Tin Học Học Kì 1</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f0f4f8; font-family: 'Segoe UI', sans-serif; }
+        .card { border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: none; }
+        .option-btn { text-align: left; font-size: 1.15rem; padding: 14px 20px; margin-bottom: 12px; border-radius: 10px; border: 2px solid #dee2e6; background: #fff; width: 100%; transition: 0.2s; }
+        .option-btn:hover { background-color: #e9ecef; }
+        .option-btn.selected { background-color: #cfe2ff; border-color: #0d6efd; font-weight: bold; }
+        .option-btn.correct { background-color: #d1e7dd !important; border-color: #198754 !important; color: #0f5132; font-weight: bold; }
+        .option-btn.wrong { background-color: #f8d7da !important; border-color: #dc3545 !important; color: #842029; }
+        .q-num-btn { width: 45px; height: 45px; margin: 4px; font-weight: bold; border-radius: 8px; }
+        .q-num-btn.answered { background-color: #0d6efd; color: white; border-color: #0d6efd; }
+        .q-num-btn.current { outline: 3px solid #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <div class="text-center mb-4">
+            <h2 class="text-primary fw-bold">💻 ÔN TẬP KIẾN THỨC TIN HỌC - HỌC KÌ 1</h2>
+            <p class="text-muted">Hệ thống luyện tập trắc nghiệm dành cho học sinh</p>
+        </div>
+
+        <!-- MÀN HÌNH ĐANG TẢI DỮ LIỆU TỪ GOOGLE SHEETS -->
+        <div id="loading-box" class="text-center py-5">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+            <p class="mt-3 fw-bold text-secondary">Đang tải danh sách lớp và bộ câu hỏi...</p>
+        </div>
+
+        <!-- BƯỚC 1: CHỌN LỚP & TÊN -->
+        <div id="step-login" class="card p-4 mx-auto d-none" style="max-width: 550px;">
+            <h4 class="mb-3 text-center">Chọn thông tin của em</h4>
+            <div class="mb-3">
+                <label class="form-label fw-bold">1. Chọn Lớp:</label>
+                <select id="select-class" class="form-select form-select-lg" onchange="onClassChange()">
+                    <option value="">-- Chọn lớp --</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-bold">2. Chọn Họ và Tên:</label>
+                <select id="select-student" class="form-select form-select-lg" disabled>
+                    <option value="">-- Vui lòng chọn lớp trước --</option>
+                </select>
+            </div>
+            <button class="btn btn-primary btn-lg w-100 fw-bold" onclick="goToQuizList()">Bắt đầu ôn tập ➔</button>
+        </div>
+
+        <!-- BƯỚC 2: CHỌN BÀI ÔN TẬP THEO KHỐI -->
+        <div id="step-quizzes" class="card p-4 mx-auto d-none" style="max-width: 650px;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">Xin chào, <span id="display-student" class="text-primary"></span>!</h4>
+                <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">Đổi bạn khác</button>
+            </div>
+            <p class="text-muted">Chọn một bộ đề ôn tập dành cho <strong>Khối <span id="display-grade"></span></strong>:</p>
+            <div id="quiz-list" class="list-group"></div>
+        </div>
+
+        <!-- BƯỚC 3: LÀM BÀI TRẮC NGHIỆM (GIAO DIỆN SÁT HẠCH) -->
+        <div id="step-exam" class="d-none">
+            <div class="row g-4">
+                <div class="col-md-8">
+                    <div class="card p-4 h-100">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                            <h5 id="exam-title" class="text-primary fw-bold mb-0"></h5>
+                            <span class="badge bg-info text-dark fs-6" id="q-counter">Câu 1/10</span>
+                        </div>
+                        <h4 id="q-text" class="mb-4 lh-base"></h4>
+                        <div id="options-container"></div>
+
+                        <div class="d-flex justify-content-between mt-auto pt-4">
+                            <button class="btn btn-secondary btn-lg" id="btn-prev" onclick="changeQuestion(-1)">⬅ Câu trước</button>
+                            <button class="btn btn-primary btn-lg" id="btn-next" onclick="changeQuestion(1)">Câu tiếp ➔</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card p-4">
+                        <h5 class="fw-bold mb-3">Danh sách câu hỏi</h5>
+                        <div id="question-palette" class="d-flex flex-wrap mb-4"></div>
+                        <button id="btn-submit" class="btn btn-success btn-lg w-100 fw-bold" onclick="submitExam()">NỘP BÀI</button>
+                        <button id="btn-back-list" class="btn btn-outline-primary btn-lg w-100 fw-bold d-none mt-2" onclick="goToQuizList()">Làm bộ đề khác</button>
+                        
+                        <div id="result-box" class="alert alert-success mt-3 d-none text-center">
+                            <h4 class="fw-bold">KẾT QUẢ</h4>
+                            <p class="fs-3 mb-1" id="score-text"></p>
+                            <small id="save-status" class="text-muted">Đang lưu điểm...</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DÁN LINK GOOGLE APPS SCRIPT CỦA THẦY VÀO DÒNG DƯỚI ĐÂY:
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyfvIeJcgPaE6ZmiLIaMhDEDqahd8ihP1OvmNKLcNAIVnKReWmLZxNC5JSWro7r_2-e5Q/exec';
+
+        let appData = { classes: [], quizzes: [] };
+        let selectedClass = null;
+        let selectedStudent = '';
+        let currentQuiz = null;
+        let userAnswers = [];
+        let currentIndex = 0;
+        let isSubmitted = false;
+
+        // Tải toàn bộ dữ liệu từ Google Sheets
+        fetch(SCRIPT_URL)
+            .then(res => res.json())
+            .then(data => {
+                appData = data;
+                document.getElementById('loading-box').classList.add('d-none');
+                document.getElementById('step-login').classList.remove('d-none');
+
+                const select = document.getElementById('select-class');
+                data.classes.forEach((c, index) => {
+                    select.innerHTML += `<option value="${index}">Lớp ${c.name} (Khối ${c.grade})</option>`;
+                });
+            })
+            .catch(err => {
+                document.getElementById('loading-box').innerHTML = '<div class="alert alert-danger">Lỗi kết nối dữ liệu Google Sheets. Thầy kiểm tra lại đường dẫn SCRIPT_URL nhé!</div>';
+            });
+
+        function onClassChange() {
+            const idx = document.getElementById('select-class').value;
+            const studentSelect = document.getElementById('select-student');
+            
+            studentSelect.innerHTML = '<option value="">-- Chọn tên của em --</option>';
+            if (idx !== '') {
+                selectedClass = appData.classes[idx];
+                studentSelect.disabled = false;
+                selectedClass.students.forEach(st => {
+                    studentSelect.innerHTML += `<option value="${st}">${st}</option>`;
+                });
+            } else {
+                selectedClass = null;
+                studentSelect.disabled = true;
+            }
+        }
+
+        function goToQuizList() {
+            selectedStudent = document.getElementById('select-student').value;
+            if (!selectedClass || !selectedStudent) {
+                alert('Em hãy chọn đầy đủ Lớp và Tên của mình nhé!');
+                return;
+            }
+
+            document.getElementById('step-login').classList.add('d-none');
+            document.getElementById('step-exam').classList.add('d-none');
+            document.getElementById('step-quizzes').classList.remove('d-none');
+
+            document.getElementById('display-student').innerText = `${selectedStudent} (${selectedClass.name})`;
+            document.getElementById('display-grade').innerText = selectedClass.grade;
+
+            const quizzes = appData.quizzes.filter(q => q.grade === selectedClass.grade);
+            const list = document.getElementById('quiz-list');
+            list.innerHTML = '';
+
+            if (quizzes.length === 0) {
+                list.innerHTML = '<div class="alert alert-warning">Hiện chưa có bài ôn tập nào cho khối này.</div>';
+                return;
+            }
+
+            quizzes.forEach(q => {
+                const btn = document.createElement('button');
+                btn.className = 'list-group-item list-group-item-action p-3 fs-5 d-flex justify-content-between align-items-center';
+                btn.innerHTML = `<span>📘 ${q.title}</span> <span class="badge bg-primary rounded-pill">${q.questions.length} câu</span>`;
+                btn.onclick = () => startExam(q);
+                list.appendChild(btn);
+            });
+        }
+
+        function startExam(quiz) {
+            currentQuiz = quiz;
+            userAnswers = new Array(quiz.questions.length).fill(null);
+            currentIndex = 0;
+            isSubmitted = false;
+
+            document.getElementById('step-quizzes').classList.add('d-none');
+            document.getElementById('step-exam').classList.remove('d-none');
+            document.getElementById('exam-title').innerText = quiz.title;
+            document.getElementById('btn-submit').classList.remove('d-none');
+            document.getElementById('btn-back-list').classList.add('d-none');
+            document.getElementById('result-box').classList.add('d-none');
+
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = currentQuiz.questions[currentIndex];
+            document.getElementById('q-counter').innerText = `Câu ${currentIndex + 1} / ${currentQuiz.questions.length}`;
+            document.getElementById('q-text').innerText = `Câu ${currentIndex + 1}: ${q.question}`;
+
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            const labels = ['A', 'B', 'C', 'D'];
+
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                if (userAnswers[currentIndex] === idx) btn.classList.add('selected');
+
+                if (isSubmitted) {
+                    if (idx === q.answer) btn.classList.add('correct');
+                    else if (userAnswers[currentIndex] === idx && idx !== q.answer) btn.classList.add('wrong');
+                }
+
+                btn.innerHTML = `<strong>${labels[idx]}.</strong> ${opt}`;
+                btn.onclick = () => {
+                    if (isSubmitted) return;
+                    userAnswers[currentIndex] = idx;
+                    renderQuestion();
+                };
+                container.appendChild(btn);
+            });
+
+            document.getElementById('btn-prev').disabled = currentIndex === 0;
+            document.getElementById('btn-next').disabled = currentIndex === currentQuiz.questions.length - 1;
+            renderPalette();
+        }
+
+        function renderPalette() {
+            const palette = document.getElementById('question-palette');
+            palette.innerHTML = '';
+            currentQuiz.questions.forEach((q, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-outline-secondary q-num-btn';
+                if (userAnswers[idx] !== null) btn.classList.add('answered');
+                if (idx === currentIndex) btn.classList.add('current');
+                if (isSubmitted) {
+                    btn.classList.remove('answered', 'btn-outline-secondary');
+                    btn.classList.add(userAnswers[idx] === q.answer ? 'btn-success' : 'btn-danger');
+                }
+                btn.innerText = idx + 1;
+                btn.onclick = () => {
+                    currentIndex = idx;
+                    renderQuestion();
+                };
+                palette.appendChild(btn);
+            });
+        }
+
+        function changeQuestion(step) {
+            currentIndex += step;
+            renderQuestion();
+        }
+
+        function submitExam() {
+            const unanswered = userAnswers.filter(a => a === null).length;
+            if (unanswered > 0 && !confirm(`Em còn ${unanswered} câu chưa chọn đáp án. Em có chắc muốn nộp bài không?`)) {
+                return;
+            }
+
+            isSubmitted = true;
+            let score = 0;
+            currentQuiz.questions.forEach((q, idx) => {
+                if (userAnswers[idx] === q.answer) score++;
+            });
+
+            document.getElementById('btn-submit').classList.add('d-none');
+            document.getElementById('btn-back-list').classList.remove('d-none');
+            document.getElementById('result-box').classList.remove('d-none');
+            document.getElementById('score-text').innerText = `Đúng ${score} / ${currentQuiz.questions.length} câu`;
+
+            renderQuestion();
+
+            // Gửi kết quả về Google Sheets (dùng mode no-cors để tránh lỗi chặn trình duyệt)
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    className: selectedClass.name,
+                    grade: selectedClass.grade,
+                    studentName: selectedStudent,
+                    quizTitle: currentQuiz.title,
+                    score,
+                    total: currentQuiz.questions.length
+                })
+            }).then(() => {
+                document.getElementById('save-status').innerText = '✔ Đã lưu kết quả vào hệ thống của Thầy!';
+            });
+        }
+    </script>
+</body>
+</html>
